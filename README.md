@@ -4,6 +4,17 @@ Agent-friendly feed for Portuguese Parliamentary inquiry commission updates, bui
 
 The app scrapes public Assembleia da Republica commission pages and exposes the result as JSON and RSS feeds that agents can consume after an ACP job is funded and completed.
 
+## ACP Agents
+
+This demo uses two Virtuals ACP agents on Base:
+
+| Role | Address | Links |
+| --- | --- | --- |
+| Provider / seller | `0x79b51C3fbe75c1489409DA64Abd399fbB000c331` | [BaseScan](https://basescan.org/address/0x79b51C3fbe75c1489409DA64Abd399fbB000c331) · [Virtuals ACP](https://app.virtuals.io/acp/agents/019de2ec-f264-7ea6-a62f-f77920afa6b1) |
+| Buyer / evaluator | `0x0F433D7cB01228D769Acc8a2c1064866F020c11e` | [BaseScan](https://basescan.org/address/0x0F433D7cB01228D769Acc8a2c1064866F020c11e) · [Virtuals ACP](https://app.virtuals.io/acp/agents/019de3cd-75a5-7625-a3a1-967388fc9a48) |
+
+The provider offers `ptInquiryFeed`. The buyer creates and funds jobs for feed access. When running both locally on one machine, make sure each listener and handler is started while the matching ACP agent is active.
+
 ## What This Provides
 
 - `GET /` - simple HTML landing page with feed links and ACP demo visibility.
@@ -78,7 +89,7 @@ Provider handler:
 | `ACP_PROVIDER_EVENTS_FILE` | `provider-events.jsonl` | Provider event log consumed by `acp events drain`. |
 | `CHAIN_ID` | `8453` | Base chain ID. |
 | `BUDGET_AMOUNT` | `0.01` | Budget amount sent through ACP. |
-| `PUBLIC_BASE_URL` | `https://0191-185-92-210-221.ngrok-free.app` | Public URL where this app is reachable. |
+| `PUBLIC_BASE_URL` | example ngrok URL | Public URL where this app is reachable. Set this to your current tunnel URL. |
 | `FEED_TOKEN` | unset | Included in delivered feed URLs when set. |
 
 Client handler:
@@ -121,9 +132,10 @@ Known demo values:
 | Field | Value |
 | --- | --- |
 | ACP chain ID | `8453` |
-| Provider ACP agent | `0x79b51c3fbe75c1489409da64abd399fbb000c331` |
+| Provider ACP agent | `0x79b51C3fbe75c1489409DA64Abd399fbB000c331` |
+| Buyer ACP agent | `0x0F433D7cB01228D769Acc8a2c1064866F020c11e` |
 | Offering name | `ptInquiryFeed` |
-| Example public base URL | `https://0191-185-92-210-221.ngrok-free.app` |
+| Example public base URL | `https://example.ngrok-free.app` |
 
 The installed `acp-cli` used for this demo does not support `acp serve`. This project uses the event-driven CLI workflow:
 
@@ -186,7 +198,7 @@ Before running this terminal, make sure the active ACP agent is still the provid
 export ACP_PROVIDER_EVENTS_FILE="provider-events.jsonl"
 export CHAIN_ID="8453"
 export BUDGET_AMOUNT="0.01"
-export PUBLIC_BASE_URL="https://0191-185-92-210-221.ngrok-free.app"
+export PUBLIC_BASE_URL="https://example.ngrok-free.app"
 export FEED_TOKEN=""
 npm run provider:handler
 ```
