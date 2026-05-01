@@ -2,6 +2,8 @@ import Fastify from "fastify";
 import { getInquiryFeed, type InquiryFeedItem } from "./scraper.js";
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const DEFAULT_FEED_LIMIT = 20;
+const MAX_FEED_LIMIT = 100;
 
 type FeedQuery = {
   limit?: string | number;
@@ -34,7 +36,7 @@ server.get("/health", async () => {
 });
 
 server.get<{ Querystring: FeedQuery }>("/feed.json", async (request) => {
-  const limit = parseLimit(request.query.limit, 20);
+  const limit = parseLimit(request.query.limit, DEFAULT_FEED_LIMIT);
   const commission = request.query.commission;
   const { items, updatedAt, stale } = await getCachedInquiryFeed();
   const filteredItems = filterFeedItems(items, commission).slice(0, limit);
@@ -138,5 +140,5 @@ function parseLimit(value: FeedQuery["limit"], fallback: number): number {
     return fallback;
   }
 
-  return Math.floor(parsed);
+  return Math.min(Math.floor(parsed), MAX_FEED_LIMIT);
 }
