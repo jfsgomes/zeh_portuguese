@@ -1,5 +1,4 @@
 import Fastify from "fastify";
-import type { FastifyRequest } from "fastify";
 import RSS from "rss";
 import { getInquiryFeed, type InquiryFeedItem } from "./scraper.js";
 
@@ -54,7 +53,7 @@ server.get("/preview.json", async () => {
 
 server.get("/rss.xml", async (request, reply) => {
   const { items } = await getCachedInquiryFeed();
-  const feed = buildRssFeed(items, getFeedUrl(request));
+  const feed = buildRssFeed(items, getFeedUrl());
 
   return reply.type("application/rss+xml").send(feed.xml(true));
 });
@@ -202,13 +201,16 @@ function parseItemDate(item: InquiryFeedItem): Date {
   return new Date(item.scrapedAt);
 }
 
-function getFeedUrl(request: FastifyRequest): string {
-  const host = request.headers.host ?? "localhost:3000";
-  const forwardedProto = request.headers["x-forwarded-proto"];
-  const protocol =
-    typeof forwardedProto === "string"
-      ? forwardedProto.split(",")[0]?.trim()
-      : request.protocol;
+function getFeedUrl(): string {
+  return new URL("/rss.xml", getPublicBaseUrl()).toString();
+}
 
-  return `${protocol || "http"}://${host}/rss.xml`;
+function getPublicBaseUrl(): string {
+  const configuredBaseUrl = process.env.PUBLIC_BASE_URL;
+
+  if (configuredBaseUrl) {
+    return configuredBaseUrl;
+  }
+
+  return `http://localhost:${port}`;
 }
