@@ -206,13 +206,13 @@ function getNearbyText(
   $: cheerio.CheerioAPI,
   link: cheerio.Cheerio<AnyNode>,
 ): string {
-  const semanticContainer = link.closest("tr, li, article, section");
   const rowContainer = link.closest("div.row");
+  const semanticContainer = link.closest("tr, li, article, section");
   const container =
-    semanticContainer.length > 0
-      ? semanticContainer
-      : rowContainer.length > 0
-        ? rowContainer
+    rowContainer.length > 0
+      ? rowContainer
+      : semanticContainer.length > 0
+        ? semanticContainer
         : link.parent();
   const parts = [link.text(), container.text()];
 

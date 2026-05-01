@@ -1,6 +1,11 @@
 import Fastify from "fastify";
+import type { FastifyInstance } from "fastify";
+import { pathToFileURL } from "node:url";
 import RSS from "rss";
-import { getInquiryFeed, type InquiryFeedItem } from "./scraper.js";
+import {
+  getInquiryFeed as scrapeInquiryFeed,
+  type InquiryFeedItem,
+} from "./scraper.js";
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const DEFAULT_FEED_LIMIT = 20;
@@ -26,84 +31,102 @@ type FeedCache = {
   updatedAt: string;
 };
 
-let feedCache: FeedCache | undefined;
+type CreateServerOptions = {
+  cacheTtlMs?: number;
+  getInquiryFeed?: () => Promise<InquiryFeedItem[]>;
+  logger?: boolean;
+  port?: number;
+  publicBaseUrl?: string;
+};
 
-const server = Fastify({
-  logger: true,
-});
+export function createServer(options: CreateServerOptions = {}): FastifyInstance {
+  let feedCache: FeedCache | undefined;
+  const cacheTtlMs = options.cacheTtlMs ?? CACHE_TTL_MS;
+  const getInquiryFeed = options.getInquiryFeed ?? scrapeInquiryFeed;
+  const port = options.port ?? Number(process.env.PORT ?? 3000);
+  const publicBaseUrl = options.publicBaseUrl ?? process.env.PUBLIC_BASE_URL;
+  const server = Fastify({
+    logger: options.logger ?? true,
+  });
 
-server.get("/health", async () => {
-  return { ok: true };
-});
+  async function getCachedInquiryFeed(): Promise<{
+    items: InquiryFeedItem[];
+    updatedAt: string;
+    stale?: true;
+  }> {
+    const now = Date.now();
 
-server.get<{ Querystring: FeedQuery }>("/feed.json", async (request) => {
-  const limit = parseLimit(request.query.limit, DEFAULT_FEED_LIMIT);
-  const commission = request.query.commission;
-  const { items, updatedAt, stale } = await getCachedInquiryFeed();
-  const filteredItems = filterFeedItems(items, commission).slice(0, limit);
-
-  return buildFeedResponse(filteredItems, updatedAt, stale);
-});
-
-server.get("/preview.json", async () => {
-  const { items, updatedAt, stale } = await getCachedInquiryFeed();
-
-  return buildFeedResponse(items.slice(0, 3), updatedAt, stale);
-});
-
-server.get("/rss.xml", async (request, reply) => {
-  const { items } = await getCachedInquiryFeed();
-  const feed = buildRssFeed(items, getFeedUrl());
-
-  return reply.type("application/rss+xml").send(feed.xml(true));
-});
-
-const port = Number(process.env.PORT ?? 3000);
-
-try {
-  await server.listen({ port });
-} catch (error) {
-  server.log.error(error);
-  process.exit(1);
-}
-
-async function getCachedInquiryFeed(): Promise<{
-  items: InquiryFeedItem[];
-  updatedAt: string;
-  stale?: true;
-}> {
-  const now = Date.now();
-
-  if (feedCache && now - feedCache.fetchedAt < CACHE_TTL_MS) {
-    return {
-      items: feedCache.items,
-      updatedAt: feedCache.updatedAt,
-    };
-  }
-
-  try {
-    const items = await getInquiryFeed();
-    const updatedAt = new Date().toISOString();
-
-    feedCache = {
-      items,
-      fetchedAt: now,
-      updatedAt,
-    };
-
-    return { items, updatedAt };
-  } catch (error) {
-    if (feedCache) {
-      server.log.warn({ error }, "Returning stale inquiry feed cache");
-
+    if (feedCache && now - feedCache.fetchedAt < cacheTtlMs) {
       return {
         items: feedCache.items,
         updatedAt: feedCache.updatedAt,
-        stale: true,
       };
     }
 
-    throw error;
+    try {
+      const items = await getInquiryFeed();
+      const updatedAt = new Date().toISOString();
+
+      feedCache = {
+        items,
+        fetchedAt: now,
+        updatedAt,
+      };
+
+      return { items, updatedAt };
+    } catch (error) {
+      if (feedCache) {
+        server.log.warn({ error }, "Returning stale inquiry feed cache");
+
+        return {
+          items: feedCache.items,
+          updatedAt: feedCache.updatedAt,
+          stale: true,
+        };
+      }
+
+      throw error;
+    }
+  }
+
+  server.get("/health", async () => {
+    return { ok: true };
+  });
+
+  server.get<{ Querystring: FeedQuery }>("/feed.json", async (request) => {
+    const limit = parseLimit(request.query.limit, DEFAULT_FEED_LIMIT);
+    const commission = request.query.commission;
+    const { items, updatedAt, stale } = await getCachedInquiryFeed();
+    const filteredItems = filterFeedItems(items, commission).slice(0, limit);
+
+    return buildFeedResponse(filteredItems, updatedAt, stale);
+  });
+
+  server.get("/preview.json", async () => {
+    const { items, updatedAt, stale } = await getCachedInquiryFeed();
+
+    return buildFeedResponse(items.slice(0, 3), updatedAt, stale);
+  });
+
+  server.get("/rss.xml", async (_request, reply) => {
+    const { items } = await getCachedInquiryFeed();
+    const feed = buildRssFeed(items, getFeedUrl(publicBaseUrl, port));
+
+    return reply.type("application/rss+xml").send(feed.xml(true));
+  });
+
+  return server;
+}
+
+if (isMainModule()) {
+  const port = Number(process.env.PORT ?? 3000);
+  const server = createServer({ port });
+
+  try {
+    await server.listen({ port });
+  } catch (error) {
+    server.log.error(error);
+    process.exit(1);
   }
 }
 
@@ -201,16 +224,23 @@ function parseItemDate(item: InquiryFeedItem): Date {
   return new Date(item.scrapedAt);
 }
 
-function getFeedUrl(): string {
-  return new URL("/rss.xml", getPublicBaseUrl()).toString();
+function getFeedUrl(publicBaseUrl: string | undefined, port: number): string {
+  return new URL("/rss.xml", getPublicBaseUrl(publicBaseUrl, port)).toString();
 }
 
-function getPublicBaseUrl(): string {
-  const configuredBaseUrl = process.env.PUBLIC_BASE_URL;
-
+function getPublicBaseUrl(
+  configuredBaseUrl: string | undefined,
+  port: number,
+): string {
   if (configuredBaseUrl) {
     return configuredBaseUrl;
   }
 
   return `http://localhost:${port}`;
+}
+
+function isMainModule(): boolean {
+  return Boolean(
+    process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href,
+  );
 }

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx src/server.ts",
     "start": "tsx src/server.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --import tsx --test src/server.test.ts src/scraper.test.ts"
   },
   "repository": {
     "type": "git",
