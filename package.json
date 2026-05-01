@@ -4,7 +4,9 @@
   "description": "Agent friendly RSS feed for Portuguese government",
   "main": "index.js",
   "scripts": {
+    "client:handler": "node scripts/client-handler.mjs",
     "dev": "tsx src/server.ts",
+    "provider:handler": "node scripts/provider-handler.mjs",
     "start": "tsx src/server.ts",
     "test": "node --import tsx --test src/server.test.ts src/scraper.test.ts"
   },

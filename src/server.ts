@@ -134,6 +134,8 @@ export function createServer(options: CreateServerOptions = {}): FastifyInstance
 }
 
 if (isMainModule()) {
+  await import("dotenv/config");
+
   const port = Number(process.env.PORT ?? 3000);
   const server = createServer({ port });
 
@@ -183,6 +185,7 @@ function buildHomePage(): string {
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="talentapp:project_verification" content="ea221be523a9b559597576e31b176cb1a6e834c604f4aa618d7b03dc528fa648fa2e627f4a0732f7ff638a6604e11b0c82129af10b63b63215b99507d49ad220">
     <title>Portuguese Parliamentary Inquiry Feed</title>
   </head>
   <body style="margin:0;background:#f7f7f3;color:#171717;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;line-height:1.55;">
@@ -198,6 +201,19 @@ function buildHomePage(): string {
           <li><a style="color:#0f5132;text-decoration:none;border-bottom:1px solid #0f5132;" href="/feed.json">/feed.json</a> <span style="color:#5c5c55;">full JSON feed</span></li>
           <li><a style="color:#0f5132;text-decoration:none;border-bottom:1px solid #0f5132;" href="/rss.xml">/rss.xml</a> <span style="color:#5c5c55;">RSS feed</span></li>
         </ul>
+      </section>
+
+      <section style="border-bottom:1px solid #d8d8ce;padding:0 0 24px;margin:0 0 24px;">
+        <h2 style="margin:0 0 14px;font-size:18px;">Virtuals ACP</h2>
+        <p style="margin:0 0 12px;">On-chain job completed for agent consumption of this feed.</p>
+        <dl style="display:grid;grid-template-columns:max-content 1fr;gap:8px 16px;margin:0;font-size:14px;">
+          <dt style="color:#5c5c55;">Chain</dt><dd style="margin:0;"><a style="color:#0f5132;text-decoration:none;border-bottom:1px solid #0f5132;" href="https://basescan.org/" rel="noopener noreferrer">Base</a> <span style="color:#5c5c55;">8453</span></dd>
+          <dt style="color:#5c5c55;">Job</dt><dd style="margin:0;">4258 <span style="color:#5c5c55;">completed</span></dd>
+          <dt style="color:#5c5c55;">Provider</dt><dd style="margin:0;overflow-wrap:anywhere;"><a style="color:#0f5132;text-decoration:none;border-bottom:1px solid #0f5132;" href="https://app.virtuals.io/acp/agents/0x79b51C3fbe75c1489409DA64Abd399fbB000c331" rel="noopener noreferrer">Virtuals</a> · <a style="color:#0f5132;text-decoration:none;border-bottom:1px solid #0f5132;" href="https://basescan.org/address/0x79b51C3fbe75c1489409DA64Abd399fbB000c331" rel="noopener noreferrer">0x79b51C3fbe75c1489409DA64Abd399fbB000c331</a></dd>
+          <dt style="color:#5c5c55;">Evaluator</dt><dd style="margin:0;overflow-wrap:anywhere;"><a style="color:#0f5132;text-decoration:none;border-bottom:1px solid #0f5132;" href="https://app.virtuals.io/acp/agents/0x0F433D7cB01228D769Acc8a2c1064866F020c11e" rel="noopener noreferrer">Virtuals</a> · <a style="color:#0f5132;text-decoration:none;border-bottom:1px solid #0f5132;" href="https://basescan.org/address/0x0F433D7cB01228D769Acc8a2c1064866F020c11e" rel="noopener noreferrer">0x0F433D7cB01228D769Acc8a2c1064866F020c11e</a></dd>
+          <dt style="color:#5c5c55;">Deliverable</dt><dd style="margin:0;overflow-wrap:anywhere;"><a style="color:#0f5132;text-decoration:none;border-bottom:1px solid #0f5132;" href="https://basescan.org/search?f=0&amp;q=0x8bef4c8f3bddbc5ad7a02f560be2de9e4d6f7537b459779cf5409f066e30d304" rel="noopener noreferrer">0x8bef4c8f3bddbc5ad7a02f560be2de9e4d6f7537b459779cf5409f066e30d304</a></dd>
+          <dt style="color:#5c5c55;">Result</dt><dd style="margin:0;">Feed URLs received and verified.</dd>
+        </dl>
       </section>
 
       <p style="margin:0;color:#5c5c55;">Source: Assembleia da República</p>

@@ -42,6 +42,16 @@ test("GET / returns the agent-facing HTML landing page", async () => {
   assert.match(response.body, /\/rss\.xml/u);
   assert.match(response.body, /Assembleia da República/u);
   assert.match(response.body, /Virtuals ACP/u);
+  assert.match(response.body, /talentapp:project_verification/u);
+  assert.match(response.body, /Job<\/dt><dd style="margin:0;">4258/u);
+  assert.match(response.body, /0x79b51C3fbe75c1489409DA64Abd399fbB000c331/u);
+  assert.match(response.body, /0x0F433D7cB01228D769Acc8a2c1064866F020c11e/u);
+  assert.match(response.body, /Feed URLs received and verified/u);
+  assert.match(response.body, /https:\/\/basescan\.org\/address\/0x79b51C3fbe75c1489409DA64Abd399fbB000c331/u);
+  assert.match(response.body, /https:\/\/basescan\.org\/address\/0x0F433D7cB01228D769Acc8a2c1064866F020c11e/u);
+  assert.match(response.body, /https:\/\/app\.virtuals\.io\/acp\/agents\/0x79b51C3fbe75c1489409DA64Abd399fbB000c331/u);
+  assert.match(response.body, /https:\/\/app\.virtuals\.io\/acp\/agents\/0x0F433D7cB01228D769Acc8a2c1064866F020c11e/u);
+  assert.match(response.body, /https:\/\/basescan\.org\/search\?f=0&amp;q=0x8bef4c8f3bddbc5ad7a02f560be2de9e4d6f7537b459779cf5409f066e30d304/u);
 
   await server.close();
 });
