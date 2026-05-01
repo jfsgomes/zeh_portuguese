@@ -67,6 +67,7 @@ const DATE_PATTERNS = [
 ];
 
 const TIME_PATTERN = /\b(?<hour>[01]?\d|2[0-3])[:h](?<minute>[0-5]\d)\b/iu;
+const MIN_MEANINGFUL_TITLE_LENGTH = 8;
 
 export async function getInquiryFeed(): Promise<InquiryFeedItem[]> {
   const scrapedAt = new Date().toISOString();
@@ -108,20 +109,29 @@ async function scrapeCommission(
 
   $("a").each((_, element) => {
     const link = $(element);
-    const title = normalizeText(link.text());
+    const linkText = normalizeText(link.text());
+    const nearbyText = getNearbyText($, link);
+    const searchText = normalizeText(`${linkText} ${nearbyText}`);
+    const linkHasKeyword = containsUsefulKeyword(linkText);
+    const nearbyHasKeyword = containsUsefulKeyword(nearbyText);
 
-    if (!title || !containsUsefulKeyword(title)) {
+    if (!linkHasKeyword && !(isShortLinkText(linkText) && nearbyHasKeyword)) {
       return;
     }
 
-    const nearbyText = getNearbyText($, link);
     const detailUrl = normalizeUrl(link.attr("href"), source.url);
 
-    if (!detailUrl || isLikelyNavigationLink(title, detailUrl, source)) {
+    if (!detailUrl || isLikelyNavigationLink(linkText, detailUrl, source)) {
       return;
     }
 
-    const category = inferCategory(title, nearbyText);
+    const title = getItemTitle(linkText, nearbyText);
+
+    if (!isMeaningfulTitle(title)) {
+      return;
+    }
+
+    const category = inferCategory(linkHasKeyword ? title : searchText, nearbyText);
     const date = extractDate(nearbyText) ?? extractDate(title);
     const time = extractTime(nearbyText) ?? extractTime(title);
     const entities = extractEntities(nearbyText);
@@ -155,6 +165,23 @@ function containsUsefulKeyword(text: string): boolean {
   return LINK_KEYWORDS.some((keyword) => normalized.includes(keyword));
 }
 
+function getItemTitle(linkText: string, nearbyText: string): string {
+  if (isMeaningfulTitle(linkText)) {
+    return linkText;
+  }
+
+  return normalizeText(nearbyText);
+}
+
+function isMeaningfulTitle(title: string): boolean {
+  return normalizeText(title).length >= MIN_MEANINGFUL_TITLE_LENGTH;
+}
+
+function isShortLinkText(text: string): boolean {
+  const normalized = normalizeText(text);
+  return normalized.length > 0 && normalized.length < MIN_MEANINGFUL_TITLE_LENGTH;
+}
+
 function inferCategory(
   title: string,
   nearbyText = "",
@@ -171,16 +198,16 @@ function inferCategory(
 function inferCategoryFromText(text: string): InquiryFeedItem["category"] {
   const normalized = normalizeForMatch(text);
 
-  if (normalized.includes("agenda") || normalized.includes("reuniao")) {
-    return "agenda";
-  }
-
   if (normalized.includes("audicao")) {
     return "audicao";
   }
 
   if (normalized.includes("audiencia")) {
     return "audiencia";
+  }
+
+  if (normalized.includes("agenda") || normalized.includes("reuniao")) {
+    return "agenda";
   }
 
   if (normalized.includes("iniciativa")) {
@@ -193,8 +220,7 @@ function inferCategoryFromText(text: string): InquiryFeedItem["category"] {
 
   if (
     normalized.includes("relatorio") ||
-    normalized.includes("documento") ||
-    normalized.includes("documentacao")
+    normalized.includes("documento")
   ) {
     return "documento";
   }
@@ -207,7 +233,7 @@ function getNearbyText(
   link: cheerio.Cheerio<AnyNode>,
 ): string {
   const rowContainer = link.closest("div.row");
-  const semanticContainer = link.closest("tr, li, article, section");
+  const semanticContainer = link.closest("tr, li, article, .card, .item");
   const container =
     rowContainer.length > 0
       ? rowContainer
@@ -299,13 +325,10 @@ function isLikelyNavigationLink(
     return true;
   }
 
-  const isCommissionPage = url.pathname
-    .toLowerCase()
-    .includes(source.commissionId.toLowerCase());
-  const isDetailPage = /Detalhe|Audicao|Audiencia|Iniciativa|Peticao|Documento|Relatorio/u.test(
-    url.pathname,
-  );
-  return !isCommissionPage && !isDetailPage;
+  const isAllowedContentPage =
+    /Detalhe/u.test(url.pathname) || /RelatoriosExternos/u.test(url.pathname);
+
+  return !isAllowedContentPage;
 }
 
 function createStableId(input: {
