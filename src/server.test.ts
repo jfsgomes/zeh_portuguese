@@ -85,6 +85,49 @@ test("GET /feed.json caps oversized limits", async () => {
   await server.close();
 });
 
+test("GET /feed.json is public when FEED_TOKEN is not configured", async () => {
+  const server = createServer({
+    getInquiryFeed: async () => sampleItems,
+    logger: false,
+  });
+
+  const response = await server.inject("/feed.json?limit=1");
+  const body = response.json();
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(body.count, 1);
+
+  await server.close();
+});
+
+test("GET /feed.json requires token when FEED_TOKEN is configured", async () => {
+  let calls = 0;
+  const server = createServer({
+    feedToken: "paid-token",
+    getInquiryFeed: async () => {
+      calls += 1;
+      return sampleItems;
+    },
+    logger: false,
+  });
+
+  const missingTokenResponse = await server.inject("/feed.json");
+  const badTokenResponse = await server.inject("/feed.json?token=wrong");
+  const goodTokenResponse = await server.inject("/feed.json?token=paid-token");
+
+  assert.equal(missingTokenResponse.statusCode, 402);
+  assert.deepEqual(missingTokenResponse.json(), {
+    error: "payment_required",
+    message: "Use Virtuals ACP to purchase access to this feed.",
+  });
+  assert.equal(badTokenResponse.statusCode, 402);
+  assert.equal(goodTokenResponse.statusCode, 200);
+  assert.equal(goodTokenResponse.json().count, sampleItems.length);
+  assert.equal(calls, 1);
+
+  await server.close();
+});
+
 test("GET /preview.json returns the latest three items", async () => {
   const server = createServer({
     getInquiryFeed: async () => sampleItems,
@@ -100,6 +143,21 @@ test("GET /preview.json returns the latest three items", async () => {
     body.items.map((item: InquiryFeedItem) => item.id),
     ["1", "2", "3"],
   );
+
+  await server.close();
+});
+
+test("GET /preview.json remains public when FEED_TOKEN is configured", async () => {
+  const server = createServer({
+    feedToken: "paid-token",
+    getInquiryFeed: async () => sampleItems,
+    logger: false,
+  });
+
+  const response = await server.inject("/preview.json");
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.json().count, 3);
 
   await server.close();
 });
@@ -180,6 +238,28 @@ test("GET /rss.xml returns RSS with canonical self-link and item metadata", asyn
   assert.match(response.body, /Commission: Comissao CPINIR/u);
   assert.match(response.body, /Category: audicao/u);
   assert.match(response.body, /Entities: Carla Rocha/u);
+
+  await server.close();
+});
+
+test("GET /rss.xml requires token when FEED_TOKEN is configured", async () => {
+  const server = createServer({
+    feedToken: "paid-token",
+    getInquiryFeed: async () => sampleItems,
+    logger: false,
+    publicBaseUrl: "https://feeds.example.test",
+  });
+
+  const missingTokenResponse = await server.inject("/rss.xml");
+  const goodTokenResponse = await server.inject("/rss.xml?token=paid-token");
+
+  assert.equal(missingTokenResponse.statusCode, 402);
+  assert.deepEqual(missingTokenResponse.json(), {
+    error: "payment_required",
+    message: "Use Virtuals ACP to purchase access to this feed.",
+  });
+  assert.equal(goodTokenResponse.statusCode, 200);
+  assert.match(goodTokenResponse.body, /<rss/u);
 
   await server.close();
 });

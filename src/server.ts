@@ -14,6 +14,7 @@ const MAX_FEED_LIMIT = 100;
 type FeedQuery = {
   limit?: string | number;
   commission?: string;
+  token?: string;
 };
 
 type FeedResponse = {
@@ -33,6 +34,7 @@ type FeedCache = {
 
 type CreateServerOptions = {
   cacheTtlMs?: number;
+  feedToken?: string;
   getInquiryFeed?: () => Promise<InquiryFeedItem[]>;
   logger?: boolean;
   port?: number;
@@ -43,6 +45,7 @@ export function createServer(options: CreateServerOptions = {}): FastifyInstance
   let feedCache: FeedCache | undefined;
   const cacheTtlMs = options.cacheTtlMs ?? CACHE_TTL_MS;
   const getInquiryFeed = options.getInquiryFeed ?? scrapeInquiryFeed;
+  const feedToken = options.feedToken ?? process.env.FEED_TOKEN;
   const port = options.port ?? Number(process.env.PORT ?? 3000);
   const publicBaseUrl = options.publicBaseUrl ?? process.env.PUBLIC_BASE_URL;
   const server = Fastify({
@@ -97,7 +100,11 @@ export function createServer(options: CreateServerOptions = {}): FastifyInstance
     return reply.type("text/html").send(buildHomePage());
   });
 
-  server.get<{ Querystring: FeedQuery }>("/feed.json", async (request) => {
+  server.get<{ Querystring: FeedQuery }>("/feed.json", async (request, reply) => {
+    if (!hasFeedAccess(feedToken, request.query.token)) {
+      return reply.code(402).send(buildPaymentRequiredResponse());
+    }
+
     const limit = parseLimit(request.query.limit, DEFAULT_FEED_LIMIT);
     const commission = request.query.commission;
     const { items, updatedAt, stale } = await getCachedInquiryFeed();
@@ -112,7 +119,11 @@ export function createServer(options: CreateServerOptions = {}): FastifyInstance
     return buildFeedResponse(items.slice(0, 3), updatedAt, stale);
   });
 
-  server.get("/rss.xml", async (_request, reply) => {
+  server.get<{ Querystring: FeedQuery }>("/rss.xml", async (request, reply) => {
+    if (!hasFeedAccess(feedToken, request.query.token)) {
+      return reply.code(402).send(buildPaymentRequiredResponse());
+    }
+
     const { items } = await getCachedInquiryFeed();
     const feed = buildRssFeed(items, getFeedUrl(publicBaseUrl, port));
 
@@ -147,6 +158,23 @@ function buildFeedResponse(
     items,
     ...(stale ? { stale } : {}),
   };
+}
+
+function buildPaymentRequiredResponse(): {
+  error: "payment_required";
+  message: "Use Virtuals ACP to purchase access to this feed.";
+} {
+  return {
+    error: "payment_required",
+    message: "Use Virtuals ACP to purchase access to this feed.",
+  };
+}
+
+function hasFeedAccess(
+  configuredToken: string | undefined,
+  providedToken: string | undefined,
+): boolean {
+  return !configuredToken || providedToken === configuredToken;
 }
 
 function buildHomePage(): string {
