@@ -1,4 +1,6 @@
 import Fastify from "fastify";
+import type { FastifyRequest } from "fastify";
+import RSS from "rss";
 import { getInquiryFeed, type InquiryFeedItem } from "./scraper.js";
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -48,6 +50,13 @@ server.get("/preview.json", async () => {
   const { items, updatedAt, stale } = await getCachedInquiryFeed();
 
   return buildFeedResponse(items.slice(0, 3), updatedAt, stale);
+});
+
+server.get("/rss.xml", async (request, reply) => {
+  const { items } = await getCachedInquiryFeed();
+  const feed = buildRssFeed(items, getFeedUrl(request));
+
+  return reply.type("application/rss+xml").send(feed.xml(true));
 });
 
 const port = Number(process.env.PORT ?? 3000);
@@ -141,4 +150,65 @@ function parseLimit(value: FeedQuery["limit"], fallback: number): number {
   }
 
   return Math.min(Math.floor(parsed), MAX_FEED_LIMIT);
+}
+
+function buildRssFeed(items: InquiryFeedItem[], feedUrl: string): RSS {
+  const feed = new RSS({
+    title: "Comissões de Inquérito - Assembleia da República",
+    description:
+      "Latest activity from Portuguese parliamentary inquiry commissions",
+    site_url: "https://www.parlamento.pt/",
+    feed_url: feedUrl,
+    language: "pt-PT",
+  });
+
+  for (const item of items) {
+    feed.item({
+      title: item.title,
+      url: item.detailUrl ?? item.sourceUrl,
+      description: buildRssDescription(item),
+      guid: item.id,
+      date: parseItemDate(item),
+    });
+  }
+
+  return feed;
+}
+
+function buildRssDescription(item: InquiryFeedItem): string {
+  const parts = [
+    `Commission: ${item.commissionName}`,
+    `Category: ${item.category}`,
+  ];
+
+  if (item.entities && item.entities.length > 0) {
+    parts.push(`Entities: ${item.entities.join(", ")}`);
+  }
+
+  parts.push(`Source: ${item.sourceUrl}`);
+
+  return parts.join("\n");
+}
+
+function parseItemDate(item: InquiryFeedItem): Date {
+  if (item.date) {
+    const parsedDate = new Date(item.date);
+
+    if (!Number.isNaN(parsedDate.getTime())) {
+      return parsedDate;
+    }
+  }
+
+  return new Date(item.scrapedAt);
+}
+
+function getFeedUrl(request: FastifyRequest): string {
+  const host = request.headers.host ?? "localhost:3000";
+  const forwardedProto = request.headers["x-forwarded-proto"];
+  const protocol =
+    typeof forwardedProto === "string"
+      ? forwardedProto.split(",")[0]?.trim()
+      : request.protocol;
+
+  return `${protocol || "http"}://${host}/rss.xml`;
 }
