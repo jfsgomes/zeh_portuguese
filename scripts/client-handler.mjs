@@ -151,7 +151,8 @@ function parseJsonLines(text) {
     .filter(Boolean)
     .flatMap((line) => {
       try {
-        return [JSON.parse(line)];
+        const parsed = JSON.parse(line);
+        return Array.isArray(parsed.events) ? parsed.events : [parsed];
       } catch {
         console.error("[client] failed to parse event line:", line);
         return [];
