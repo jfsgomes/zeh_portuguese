@@ -26,6 +26,26 @@ test("GET /health returns ok", async () => {
   await server.close();
 });
 
+test("GET / returns the agent-facing HTML landing page", async () => {
+  const server = createServer({
+    getInquiryFeed: async () => sampleItems,
+    logger: false,
+  });
+
+  const response = await server.inject("/");
+
+  assert.equal(response.statusCode, 200);
+  assert.match(response.headers["content-type"] as string, /text\/html/u);
+  assert.match(response.body, /Portuguese Parliamentary Inquiry Feed/u);
+  assert.match(response.body, /\/preview\.json/u);
+  assert.match(response.body, /\/feed\.json/u);
+  assert.match(response.body, /\/rss\.xml/u);
+  assert.match(response.body, /Assembleia da República/u);
+  assert.match(response.body, /Virtuals ACP/u);
+
+  await server.close();
+});
+
 test("GET /feed.json returns metadata, filters by commission, and applies limit", async () => {
   const server = createServer({
     getInquiryFeed: async () => sampleItems,

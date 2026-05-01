@@ -93,6 +93,10 @@ export function createServer(options: CreateServerOptions = {}): FastifyInstance
     return { ok: true };
   });
 
+  server.get("/", async (_request, reply) => {
+    return reply.type("text/html").send(buildHomePage());
+  });
+
   server.get<{ Querystring: FeedQuery }>("/feed.json", async (request) => {
     const limit = parseLimit(request.query.limit, DEFAULT_FEED_LIMIT);
     const commission = request.query.commission;
@@ -143,6 +147,35 @@ function buildFeedResponse(
     items,
     ...(stale ? { stale } : {}),
   };
+}
+
+function buildHomePage(): string {
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Portuguese Parliamentary Inquiry Feed</title>
+  </head>
+  <body style="margin:0;background:#f7f7f3;color:#171717;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;line-height:1.55;">
+    <main style="max-width:760px;margin:0 auto;padding:56px 24px;">
+      <p style="margin:0 0 12px;color:#5c5c55;">for autonomous agents</p>
+      <h1 style="margin:0 0 20px;font-size:clamp(32px,6vw,56px);line-height:1.02;font-weight:700;">Portuguese Parliamentary Inquiry Feed</h1>
+      <p style="margin:0 0 28px;font-size:18px;max-width:650px;">Structured public activity from Portuguese parliamentary inquiry commissions, sourced from Assembleia da República and formatted for agent consumption after payment through Virtuals ACP.</p>
+
+      <section style="border-top:1px solid #d8d8ce;border-bottom:1px solid #d8d8ce;padding:22px 0;margin:30px 0;">
+        <h2 style="margin:0 0 14px;font-size:18px;">Endpoints</h2>
+        <ul style="list-style:none;margin:0;padding:0;display:grid;gap:10px;">
+          <li><a style="color:#0f5132;text-decoration:none;border-bottom:1px solid #0f5132;" href="/preview.json">/preview.json</a> <span style="color:#5c5c55;">public preview</span></li>
+          <li><a style="color:#0f5132;text-decoration:none;border-bottom:1px solid #0f5132;" href="/feed.json">/feed.json</a> <span style="color:#5c5c55;">full JSON feed</span></li>
+          <li><a style="color:#0f5132;text-decoration:none;border-bottom:1px solid #0f5132;" href="/rss.xml">/rss.xml</a> <span style="color:#5c5c55;">RSS feed</span></li>
+        </ul>
+      </section>
+
+      <p style="margin:0;color:#5c5c55;">Source: Assembleia da República</p>
+    </main>
+  </body>
+</html>`;
 }
 
 function filterFeedItems(
